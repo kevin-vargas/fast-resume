@@ -1,0 +1,215 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authorization-server
+  namespace: kevin-vargas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authorization-server
+  template:
+    metadata:
+      labels:
+        app: authorization-server
+    spec:
+      containers:
+        - name: app
+          image: registry.cloud.okteto.net/kevin-vargas/authorization-server-fast:latest
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          env:
+            - name: PORT
+              value: ":8080"
+            - name: SECURE
+              value: "false"
+          envFrom:
+          - secretRef:
+              name: authorization-server-secret
+      imagePullSecrets:
+        - name: okteto-regcred
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-authorization-server
+  namespace: kevin-vargas
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: authorization-server
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name:  authorization-server-service
+  namespace: kevin-vargas
+  annotations:
+    dev.okteto.com/auto-ingress: "true"
+spec:
+  selector:
+    app:  authorization-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bff-server
+  namespace: kevin-vargas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bff-server
+  template:
+    metadata:
+      labels:
+        app: bff-server
+    spec:
+      containers:
+        - name: app
+          image: registry.cloud.okteto.net/kevin-vargas/bff-server-fast:latest
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          env:
+            - name: PORT
+              value: ":8080"
+            - name: BASE_SYNTHESIZER_SERVER
+              value: "http://synthesizer-server-service:8080"
+      imagePullSecrets:
+        - name: okteto-regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bff-server-service
+  namespace: kevin-vargas
+  annotations:
+    dev.okteto.com/auto-ingress: "true"
+spec:
+  selector:
+    app: bff-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synthesizer-server
+  namespace: kevin-vargas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: synthesizer-server
+  template:
+    metadata:
+      labels:
+        app: synthesizer-server
+    spec:
+      containers:
+        - name: app
+          image: registry.cloud.okteto.net/kevin-vargas/synthesizer-server-fast:latest
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          ports:
+            - name: web
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: PORT
+              value: ":8080"
+          envFrom:
+          - secretRef:
+              name: synthesizer-server-secret
+      imagePullSecrets:
+        - name: okteto-regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synthesizer-server-service
+  namespace: kevin-vargas
+spec:
+  selector:
+    app: synthesizer-server
+  ports:
+    - port: 8000
+      targetPort: 3000
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-server
+  namespace: kevin-vargas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-server
+  template:
+    metadata:
+      labels:
+        app: web-server
+    spec:
+      containers:
+        - name: app
+          image: registry.cloud.okteto.net/kevin-vargas/web-server-fast:latest
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          env:
+            - name: PORT
+              value: ":8080"
+      imagePullSecrets:
+        - name: okteto-regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-server-service
+  namespace: kevin-vargas
+  annotations:
+    dev.okteto.com/auto-ingress: "true"
+spec:
+  selector:
+    app: web-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: LoadBalancer

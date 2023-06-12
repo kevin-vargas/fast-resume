@@ -1,0 +1,6 @@
+go 1.20
+
+use ./authorization-server
+use ./web-server
+use ./bff-server
+use ./synthesizer-server
