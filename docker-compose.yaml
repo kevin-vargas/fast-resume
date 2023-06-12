@@ -1,0 +1,55 @@
+version: "3"
+services: 
+  synthesizer:
+    environment:
+      TOKEN: ${SYNTHESIZER_SERVER_TOKEN}
+      PORT: ":80"
+    container_name: synthesizer
+    build: ./synthesizer-server
+    image: synthesizer-server-fast:latest
+    pull_policy: build
+    networks:
+      - backend
+  bff:
+    environment:
+      BASE_SYNTHESIZER_SERVER: "http://synthesizer"
+      PORT: ":80"
+    container_name: bff
+    build: ./bff-server
+    image: bff-server-fast:latest
+    pull_policy: build
+    ports:
+      - "8080:80"
+    networks:
+      - backend
+      - public
+  authorize:
+    environment:
+      PRIVATE_KEY: ${AUTHORIZATION_SERVER_PRIVATE_KEY}
+      CLIENT_ID: ${AUTHORIZATION_SERVER_CLIENT_ID}
+      CLIENT_SECRET: ${AUTHORIZATION_SERVER_CLIENT_SECRET}
+    container_name: authorize
+    build: ./authorization-server
+    image: authorization-server-fast:latest
+    ports:
+      - "443:443"
+    networks:
+      - backend
+      - public
+  web-server:
+    environment:
+      VITE_BACKEND_URI: http://bff
+      VITE_AUTHORIZE_URI: https://authorize
+    container_name: web-server
+    build: ./web-server
+    image: web-server-fast:latest
+    pull_policy: build
+    ports:
+      - "80:80"
+    networks:
+      - public
+networks:
+  backend:
+    driver: bridge
+  public:
+    driver: bridge
